@@ -122,7 +122,7 @@ void setup()
 
   for (uint8_t addr = 0; addr <= 127; addr++)
   {
-    Wire.be(addr);
+    //Wire.be(addr);
   }
 
   //     Task 2 iv.): Initialise SGP30
