@@ -1,3 +1,4 @@
+
 #include <Adafruit_TinyUSB.h>
 #include <U8g2lib.h>
 #include <Wire.h>
@@ -6,13 +7,13 @@
 //             You can also write the answers to the questions here.
 // ------------------------------------------------------------
 
-#define SGP30_ADDR 0x00 // 7-bit I2C address of the SGP30
+#define SGP30_ADDR 0x58 // 7-bit I2C address of the SGP30
 
 // Command codes (2 bytes each, MSB first — see datasheet )
-#define CMD_INIT_MSB 0x00 //    first byte
-#define CMD_INIT_LSB 0x00 //    second byte
-#define CMD_MEAS_MSB 0x00
-#define CMD_MEAS_LSB 0x00
+#define CMD_INIT_MSB 0x20 //    first byte
+#define CMD_INIT_LSB 0x03 //    second byte
+#define CMD_MEAS_MSB 0x20
+#define CMD_MEAS_LSB 0x08
 
 // Display: air quality range for mapping CO2 to a percentage, you can change
 // these to test more ranges
@@ -111,7 +112,8 @@ void display_values(uint16_t co2, uint16_t tvoc) {
 void setup() {
   Serial.begin(115200);
   unsigned long start = millis();
-  while (!Serial && millis() - start < 3000) ;
+  while (!Serial && millis() - start < 3000)
+      ;
   // Wait for USB Serial connection
   //     Task 2 i.): I2C scanner
   // TODO: Transmit to each available I2C address, print the adress when
@@ -119,6 +121,8 @@ void setup() {
   //       You can use decimal adresses when sending but convert them to hex
   //       when printing them out. Use Serial.print(address, HEX) to make it
   //       easier.
+
+  Wire.begin();
 
   for (uint8_t addr = 8; addr <= 127; addr++) {
     Wire.beginTransmission(addr);
@@ -143,8 +147,6 @@ void loop() {
   //       If it returns false, print an error message and return early.
   // TODO: Reconstruct 16-bit values from the raw bytes ----
   // TODO: print co2 and tvoc with appropriate labels and units.
-
-  Serial.println("Hello World");
 
   // --- Task 3 ii.): Print the sgp30 values on the display
   //                  in addition to the Serial monitor
