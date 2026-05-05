@@ -4,50 +4,34 @@
 #include <Wire.h>
 #include <cstdint>
 
-// Task 2 ii.) Constants — fill in the correct values from the datasheet
-//             You can also write the answers to the questions here.
-// ------------------------------------------------------------
-
 #define SGP30_ADDR 0x58 // 7-bit I2C address of the SGP30
 
-// Command codes (2 bytes each, MSB first — see datasheet )
 #define CMD_INIT_MSB 0x20 //    first byte
 #define CMD_INIT_LSB 0x03 //    second byte
 #define CMD_MEAS_MSB 0x20
 #define CMD_MEAS_LSB 0x08
 
-// How many bytes does a measurement
+// Measurement contains 3 Byte, Data MSB, Data LSB and CRC
 
-// Display: air quality range for mapping CO2 to a percentage, you can change
-// these to test more ranges
 #define CO2_MIN 400  // ppm — clean outdoor air
 #define CO2_MAX 2000 // ppm — poor indoor air quality
 
-#define BOX_WIDTH 100 // ppm — clean outdoor air
+#define BOX_WIDTH 100
 
-#define MEASURE_INTERVAL_MS 1000UL
+#define MEASURE_INTERVAL_MS 200UL
 
-// ------------------------------------------------------------
-//  Display constructor
-// ------------------------------------------------------------
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
 
-//  Task 2 iii.) — Helper functions
-// ------------------------------------------------------------
-//  Raw byte storage for the last SGP30 measurement.
-//
-// We use global variables here to keep the function signatures simple.
-// The cleaner alternatives (pointers or a result struct) use C concepts not yet
-// introduced. At this scale globals are fine; in a larger project you would
-// avoid them.
-//
-//  The SGP30 sends each 16-bit value as two separate bytes:
-//    MSB — most significant byte  (upper 8 bits of the value)
-//    LSB — least significant byte (lower 8 bits of the value)
-//  A third byte per value is a CRC checksum — we discard it.
-// ------------------------------------------------------------
 uint8_t raw_co2_msb, raw_co2_lsb;   // assign values with sgp30_read()
 uint8_t raw_tvoc_msb, raw_tvoc_lsb; // assign values with sgp30_read()
+
+// Initial Time
+unsigned long init_time_ms = 0;
+unsigned long last_measure_ms = 0;
+
+// Array and pointer for Task 4
+uint8_t storage_ptr = 0;
+uint8_t co2_storage[128] = {60};
 
 void sgp30_cmd(uint8_t msb, uint8_t lsb) {
   // ------------------------------------------------------------
@@ -56,8 +40,6 @@ void sgp30_cmd(uint8_t msb, uint8_t lsb) {
   //  The SGP30 expects all commands as two bytes (MSB first).
   //  Example:  sgp30_cmd(CMD_INIT_MSB, CMD_INIT_LSB);
   // ------------------------------------------------------------
-  // TODO: open a transmission to SGP30_ADDR,
-  //       write msb, write lsb, close the transmission.
 
   Wire.beginTransmission(SGP30_ADDR);
   Wire.write(msb);
@@ -76,13 +58,7 @@ bool sgp30_read(uint8_t n) {
   //
   //  Returns true if all 6 bytes were received, false on error.
   // ------------------------------------------------------------
-  // TODO: use Wire.requestFrom(SGP30_ADDR, n) to request n bytes.
-  //       If the return value is not n, return false immediately.
-  //       The expected return value is in the Datasheet.
-  //       Read the n bytes in order, remember wire.read() can only
-  //       read one byte at a time. Look out for CRC bytes,
-  //       we don't need to store those.
-  //
+
   if (Wire.requestFrom(SGP30_ADDR, n) != n)
     return false;
 
@@ -117,29 +93,51 @@ uint16_t to_uint16(uint8_t msb, uint8_t lsb) {
   return ((uint16_t)msb << 8) | lsb;
 }
 
-//  Task 3 — Display helper  (optional, but keeps loop() clean)
-
 void display_values(uint16_t co2, uint16_t tvoc) {
   // ------------------------------------------------------------
   //  display_values : show co2 and tvoc on the OLED
   //
   // ------------------------------------------------------------
-  // TODO (Task 3): set cursor, print co2 and tvoc values.
-  // TODO (Task 4): map co2 to pct (0-100), draw a filled bar with
-  //                u8g2.drawBox(x, y, width, height).
-  //                Bar width  = map(pct, 0, 100, 0, 128)
-  //                Remember: constrain pct to [0, 100] before mapping.
+
+  u8g2.clearBuffer();
+  u8g2.drawStr(0, 10, "Hardware-Praktikum");
+  u8g2.setCursor(0, 20);
+  u8g2.printf("eCO2: %d", co2);
+  u8g2.setCursor(0, 40);
+  u8g2.printf("TVOC: %d", tvoc);
+
+  uint8_t co2_percent = constrain(map(co2, CO2_MIN, CO2_MAX, 0, 100), 0, 100);
+  uint8_t co2_width = map(co2_percent, 0, 100, 0, 128);
+
+  // drawing the box
+  u8g2.drawBox(0, 22, co2_width, 8);
+
+  // For the creative part we decided on a graph. We add a new value to the
+  // array every cycle Then we go through the array and draw a line between each
+  // measuring point and its right neighbor
+
+  co2_storage[storage_ptr] = map(co2_percent, 0, 100, 60, 41);
+  storage_ptr = (storage_ptr + 1) % 128;
+
+  for (uint8_t x = 0; x < 127; x++) {
+    uint8_t val = co2_storage[(x + storage_ptr) % 128];
+    uint8_t next_val = co2_storage[(x + storage_ptr + 1) % 128];
+
+    u8g2.drawLine(x, val, x + 1, next_val);
+  }
+
+  u8g2.sendBuffer();
 }
 
-unsigned long init_time_ms = 0;
-
 void setup() {
+
   Serial.begin(115200);
   unsigned long start = millis();
   while (!Serial && millis() - start < 3000)
     ;
-  // Wait for USB Serial connection
-  //     Task 2 i.): I2C scanner
+
+  // I2C Scanner
+
   Wire.begin();
 
   for (uint8_t addr = 8; addr <= 127; addr++) {
@@ -149,67 +147,51 @@ void setup() {
     }
   }
 
-  //     Task 2 iv.): Initialise SGP30
-  // TODO: send the init command, wait for initialization
-  //       and print out a message.
+  // Initializing Sensor
 
   Serial.println("Initializing SGP30...");
   sgp30_cmd(CMD_INIT_MSB, CMD_INIT_LSB);
   delay(10);
   init_time_ms = millis();
 
-  // --- Task 3 i.): Simple display use ---
-  // TODO: initialize display, set a font, display "Hardware Praktikum 2026",
-  //       and push it to the screen.
-  u8g2.begin();
+  // Initializing Display & setting font
 
-  u8g2.clearBuffer();
+  u8g2.begin();
   u8g2.setFont(u8g2_font_t0_12b_tr);
+
+  // Display initial Text
+  u8g2.clearBuffer();
   u8g2.drawStr(0, 10, "Hardware-Praktikum");
   u8g2.drawStr(0, 20, "Starting up sensor... :)");
   u8g2.sendBuffer();
+
+  // Initializing our Storage Array for Task 4 to 60 (lowest pixel value) :)
+  for (uint8_t x = 0; x <= 127; x++) {
+    co2_storage[x] = 60;
+  }
+
   delay(15000);
 }
 
-unsigned long last_measure_ms = 0;
-
 void loop() {
-
-  // --- Task 2 iv.): Send measure command and read response ---
-  // --- Task 3 ii.): Print the sgp30 values on the display
-  //                  in addition to the Serial monitor
   unsigned long current = millis();
 
+  // Measuring every 200ms
   if (current - last_measure_ms >= MEASURE_INTERVAL_MS) {
     sgp30_cmd(CMD_MEAS_MSB, CMD_MEAS_LSB);
     delay(12);
     sgp30_read(6);
 
+    // Converting CO2 and TVOC to 16 bit int
     uint16_t co2 = to_uint16(raw_co2_msb, raw_co2_lsb);
     uint16_t tvoc = to_uint16(raw_tvoc_msb, raw_tvoc_lsb);
 
+    // Printing to Serial
     Serial.printf("eCO2: %d - ", co2);
     Serial.printf("TVOC: %d \n", tvoc);
 
-    u8g2.clearBuffer();
-    u8g2.drawStr(0, 10, "Hardware-Praktikum");
-    u8g2.setCursor(0, 20);
-    u8g2.printf("eCO2: %d", co2);
-    u8g2.setCursor(0, 40);
-    u8g2.printf("TVOC: %d", tvoc);
-    u8g2.sendBuffer();
-
-    uint8_t width_co2 = constrain(map(co2, CO2_MIN, CO2_MAX, 0, 100), 0, 100);
-    uint8_t width_tvoc = constrain(map(tvoc, CO2_MIN, CO2_MAX, 0, 100), 0, 100);
-
-    u8g2.drawBox(0, 30, width_co2, 8);
-    u8g2.drawBox(0, 50, width_co2, 8);
+    display_values(co2, tvoc);
 
     last_measure_ms = current;
   }
-
-  // --- Task 4: Map CO2 to a percentage ---
-  // TODO: use map() to scale co2 from raw values to 0-100%.
-  //       Then use constrain() to make sure the percetange
-  //       doesnt go outside 0-100.
 }
