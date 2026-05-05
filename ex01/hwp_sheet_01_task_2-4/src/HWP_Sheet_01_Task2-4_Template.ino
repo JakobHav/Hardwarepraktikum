@@ -2,6 +2,7 @@
 #include <Adafruit_TinyUSB.h>
 #include <U8g2lib.h>
 #include <Wire.h>
+#include <cstdint>
 
 // Task 2 ii.) Constants — fill in the correct values from the datasheet
 //             You can also write the answers to the questions here.
@@ -15,10 +16,14 @@
 #define CMD_MEAS_MSB 0x20
 #define CMD_MEAS_LSB 0x08
 
+// How many bytes does a measurement
+
 // Display: air quality range for mapping CO2 to a percentage, you can change
 // these to test more ranges
 #define CO2_MIN 400  // ppm — clean outdoor air
 #define CO2_MAX 2000 // ppm — poor indoor air quality
+
+#define MEASURE_INTERVAL_MS 1000UL
 
 // ------------------------------------------------------------
 //  Display constructor
@@ -51,7 +56,11 @@ void sgp30_cmd(uint8_t msb, uint8_t lsb) {
   // ------------------------------------------------------------
   // TODO: open a transmission to SGP30_ADDR,
   //       write msb, write lsb, close the transmission.
-  //
+
+  Wire.beginTransmission(SGP30_ADDR);
+  Wire.write(msb);
+  Wire.write(lsb);
+  Wire.endTransmission();
 }
 
 bool sgp30_read(uint8_t n) {
@@ -120,19 +129,15 @@ void display_values(uint16_t co2, uint16_t tvoc) {
   //                Remember: constrain pct to [0, 100] before mapping.
 }
 
+unsigned long init_time_ms = 0;
+
 void setup() {
   Serial.begin(115200);
   unsigned long start = millis();
   while (!Serial && millis() - start < 3000)
-    ;
+      ;
   // Wait for USB Serial connection
   //     Task 2 i.): I2C scanner
-  // TODO: Transmit to each available I2C address, print the adress when
-  // receiving an ACK.
-  //       You can use decimal adresses when sending but convert them to hex
-  //       when printing them out. Use Serial.print(address, HEX) to make it
-  //       easier.
-
   Wire.begin();
 
   for (uint8_t addr = 8; addr <= 127; addr++) {
@@ -146,21 +151,56 @@ void setup() {
   // TODO: send the init command, wait for initialization
   //       and print out a message.
 
+  Serial.println("Initializing SGP30...");
+  sgp30_cmd(CMD_INIT_MSB, CMD_INIT_LSB);
+  delay(10);
+  init_time_ms = millis();
+
   // --- Task 3 i.): Simple display use ---
   // TODO: initialize display, set a font, display "Hardware Praktikum 2026",
   //       and push it to the screen.
+  u8g2.begin();
+
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_t0_12b_tr);
+  u8g2.drawStr(0, 10, "Hardware-Praktikum");
+  u8g2.sendBuffer();
+  delay(15000);
 }
 
-void loop() {
-  // --- Task 2 iv.): Send measure command and read response ---
-  // TODO: call sgp30_cmd() with the measure command bytes.
-  // TODO: call sgp30_read().
-  //       If it returns false, print an error message and return early.
-  // TODO: Reconstruct 16-bit values from the raw bytes ----
-  // TODO: print co2 and tvoc with appropriate labels and units.
+unsigned long last_measure_ms = 0;
 
-  // --- Task 3 ii.): Print the sgp30 values on the display
-  //                  in addition to the Serial monitor
+void loop() {
+
+    // --- Task 2 iv.): Send measure command and read response ---
+    // --- Task 3 ii.): Print the sgp30 values on the display
+    //                  in addition to the Serial monitor
+    unsigned long current = millis();
+
+    if (current - last_measure_ms >= MEASURE_INTERVAL_MS) {
+        sgp30_cmd(CMD_MEAS_MSB, CMD_MEAS_LSB);
+        delay(12);
+        sgp30_read(6);
+
+        uint16_t co2 = to_uint16(raw_co2_msb, raw_co2_lsb);
+        uint16_t tvoc = to_uint16(raw_tvoc_msb, raw_tvoc_lsb);
+
+        Serial.printf("eCO2: %d - ", co2);
+        Serial.printf("TVOC: %d \n", tvoc);
+
+        u8g2.clearBuffer();
+        u8g2.drawStr(0, 10, "Hardware-Praktikum");
+        u8g2.setCursor(0, 20);
+        u8g2.printf("eCO2: %d", co2);
+        u8g2.setCursor(0, 30);
+        u8g2.printf("TVOC: %d", tvoc);
+        u8g2.sendBuffer();
+
+        last_measure_ms = current;
+    }
+
+
+
 
   // --- Task 4: Map CO2 to a percentage ---
   // TODO: use map() to scale co2 from raw values to 0-100%.
