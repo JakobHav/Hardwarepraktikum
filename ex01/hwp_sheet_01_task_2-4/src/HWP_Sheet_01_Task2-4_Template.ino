@@ -72,7 +72,16 @@ bool sgp30_read(uint8_t n) {
   //       read one byte at a time. Look out for CRC bytes,
   //       we don't need to store those.
   //
-  return false;
+  if (Wire.requestFrom(SGP30_ADDR, n) != n)
+    return false;
+
+  raw_co2_msb = Wire.read();
+  raw_co2_lsb = Wire.read();
+  Wire.read();
+  raw_tvoc_msb = Wire.read();
+  raw_tvoc_lsb = Wire.read();
+
+  return true;
 }
 
 uint16_t to_uint16(uint8_t msb, uint8_t lsb) {
@@ -113,7 +122,7 @@ void setup() {
   Serial.begin(115200);
   unsigned long start = millis();
   while (!Serial && millis() - start < 3000)
-      ;
+    ;
   // Wait for USB Serial connection
   //     Task 2 i.): I2C scanner
   // TODO: Transmit to each available I2C address, print the adress when
