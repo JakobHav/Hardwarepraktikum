@@ -126,6 +126,8 @@ void setup() {
   //       You can use decimal adresses when sending but convert them to hex when printing them out.
   //       Use Serial.print(address, HEX) to make it easier.
 
+  for (uint8_t i = 0; i <= 127)
+
   //     Task 2 iv.): Initialise SGP30 
   // TODO: send the init command, wait for initialization
   //       and print out a message.
