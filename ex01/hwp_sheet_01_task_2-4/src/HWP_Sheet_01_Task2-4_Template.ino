@@ -110,8 +110,9 @@ void display_values(uint16_t co2, uint16_t tvoc) {
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial)
-    ; // Wait for USB Serial connection
+  unsigned long start = millis();
+  while (!Serial && millis() - start < 3000) ;
+  // Wait for USB Serial connection
   //     Task 2 i.): I2C scanner
   // TODO: Transmit to each available I2C address, print the adress when
   // receiving an ACK.
@@ -142,6 +143,8 @@ void loop() {
   //       If it returns false, print an error message and return early.
   // TODO: Reconstruct 16-bit values from the raw bytes ----
   // TODO: print co2 and tvoc with appropriate labels and units.
+
+  Serial.println("Hello World");
 
   // --- Task 3 ii.): Print the sgp30 values on the display
   //                  in addition to the Serial monitor
