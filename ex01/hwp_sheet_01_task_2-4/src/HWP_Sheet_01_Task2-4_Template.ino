@@ -23,6 +23,8 @@
 #define CO2_MIN 400  // ppm — clean outdoor air
 #define CO2_MAX 2000 // ppm — poor indoor air quality
 
+#define BOX_WIDTH 100 // ppm — clean outdoor air
+
 #define MEASURE_INTERVAL_MS 1000UL
 
 // ------------------------------------------------------------
@@ -135,7 +137,7 @@ void setup() {
   Serial.begin(115200);
   unsigned long start = millis();
   while (!Serial && millis() - start < 3000)
-      ;
+    ;
   // Wait for USB Serial connection
   //     Task 2 i.): I2C scanner
   Wire.begin();
@@ -164,6 +166,7 @@ void setup() {
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_t0_12b_tr);
   u8g2.drawStr(0, 10, "Hardware-Praktikum");
+  u8g2.drawStr(0, 20, "Starting up sensor... :)");
   u8g2.sendBuffer();
   delay(15000);
 }
@@ -172,35 +175,38 @@ unsigned long last_measure_ms = 0;
 
 void loop() {
 
-    // --- Task 2 iv.): Send measure command and read response ---
-    // --- Task 3 ii.): Print the sgp30 values on the display
-    //                  in addition to the Serial monitor
-    unsigned long current = millis();
+  // --- Task 2 iv.): Send measure command and read response ---
+  // --- Task 3 ii.): Print the sgp30 values on the display
+  //                  in addition to the Serial monitor
+  unsigned long current = millis();
 
-    if (current - last_measure_ms >= MEASURE_INTERVAL_MS) {
-        sgp30_cmd(CMD_MEAS_MSB, CMD_MEAS_LSB);
-        delay(12);
-        sgp30_read(6);
+  if (current - last_measure_ms >= MEASURE_INTERVAL_MS) {
+    sgp30_cmd(CMD_MEAS_MSB, CMD_MEAS_LSB);
+    delay(12);
+    sgp30_read(6);
 
-        uint16_t co2 = to_uint16(raw_co2_msb, raw_co2_lsb);
-        uint16_t tvoc = to_uint16(raw_tvoc_msb, raw_tvoc_lsb);
+    uint16_t co2 = to_uint16(raw_co2_msb, raw_co2_lsb);
+    uint16_t tvoc = to_uint16(raw_tvoc_msb, raw_tvoc_lsb);
 
-        Serial.printf("eCO2: %d - ", co2);
-        Serial.printf("TVOC: %d \n", tvoc);
+    Serial.printf("eCO2: %d - ", co2);
+    Serial.printf("TVOC: %d \n", tvoc);
 
-        u8g2.clearBuffer();
-        u8g2.drawStr(0, 10, "Hardware-Praktikum");
-        u8g2.setCursor(0, 20);
-        u8g2.printf("eCO2: %d", co2);
-        u8g2.setCursor(0, 30);
-        u8g2.printf("TVOC: %d", tvoc);
-        u8g2.sendBuffer();
+    u8g2.clearBuffer();
+    u8g2.drawStr(0, 10, "Hardware-Praktikum");
+    u8g2.setCursor(0, 20);
+    u8g2.printf("eCO2: %d", co2);
+    u8g2.setCursor(0, 40);
+    u8g2.printf("TVOC: %d", tvoc);
+    u8g2.sendBuffer();
 
-        last_measure_ms = current;
-    }
+    uint8_t width_co2 = constrain(map(co2, CO2_MIN, CO2_MAX, 0, 100), 0, 100);
+    uint8_t width_tvoc = constrain(map(tvoc, CO2_MIN, CO2_MAX, 0, 100), 0, 100);
 
+    u8g2.drawBox(0, 30, width_co2, 8);
+    u8g2.drawBox(0, 50, width_co2, 8);
 
-
+    last_measure_ms = current;
+  }
 
   // --- Task 4: Map CO2 to a percentage ---
   // TODO: use map() to scale co2 from raw values to 0-100%.
