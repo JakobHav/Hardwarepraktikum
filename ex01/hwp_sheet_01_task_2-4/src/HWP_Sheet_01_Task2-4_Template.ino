@@ -119,8 +119,11 @@ void setup() {
   //       when printing them out. Use Serial.print(address, HEX) to make it
   //       easier.
 
-  for (uint8_t addr = 0; addr <= 127; addr++) {
-    Wire.be(addr);
+  for (uint8_t addr = 8; addr <= 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      Serial.println(addr, HEX);
+    }
   }
 
   //     Task 2 iv.): Initialise SGP30
