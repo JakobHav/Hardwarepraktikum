@@ -80,6 +80,7 @@ bool sgp30_read(uint8_t n) {
   Wire.read();
   raw_tvoc_msb = Wire.read();
   raw_tvoc_lsb = Wire.read();
+
   Wire.read();
 
   return true;
