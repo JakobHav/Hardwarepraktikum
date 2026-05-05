@@ -1,6 +1,6 @@
 #include <Adafruit_TinyUSB.h>
-#include <Wire.h>
 #include <U8g2lib.h>
+#include <Wire.h>
 
 // Task 2 ii.) Constants — fill in the correct values from the datasheet
 //             You can also write the answers to the questions here.
@@ -14,7 +14,8 @@
 #define CMD_MEAS_MSB 0x00
 #define CMD_MEAS_LSB 0x00
 
-// Display: air quality range for mapping CO2 to a percentage, you can change these to test more ranges
+// Display: air quality range for mapping CO2 to a percentage, you can change
+// these to test more ranges
 #define CO2_MIN 400  // ppm — clean outdoor air
 #define CO2_MAX 2000 // ppm — poor indoor air quality
 
@@ -28,8 +29,9 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
 //  Raw byte storage for the last SGP30 measurement.
 //
 // We use global variables here to keep the function signatures simple.
-// The cleaner alternatives (pointers or a result struct) use C concepts not yet introduced.
-// At this scale globals are fine; in a larger project you would avoid them.
+// The cleaner alternatives (pointers or a result struct) use C concepts not yet
+// introduced. At this scale globals are fine; in a larger project you would
+// avoid them.
 //
 //  The SGP30 sends each 16-bit value as two separate bytes:
 //    MSB — most significant byte  (upper 8 bits of the value)
@@ -39,8 +41,7 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
 uint8_t raw_co2_msb, raw_co2_lsb;   // assign values with sgp30_read()
 uint8_t raw_tvoc_msb, raw_tvoc_lsb; // assign values with sgp30_read()
 
-void sgp30_cmd(uint8_t msb, uint8_t lsb)
-{
+void sgp30_cmd(uint8_t msb, uint8_t lsb) {
   // ------------------------------------------------------------
   //  sgp30_cmd : send a 2-byte command to the SGP30
   //
@@ -52,8 +53,7 @@ void sgp30_cmd(uint8_t msb, uint8_t lsb)
   //
 }
 
-bool sgp30_read(uint8_t n)
-{
+bool sgp30_read(uint8_t n) {
   // ------------------------------------------------------------
   //  sgp30_read : read one measurement(n bytes) from the SGP30.
   //
@@ -74,8 +74,7 @@ bool sgp30_read(uint8_t n)
   return false;
 }
 
-uint16_t to_uint16(uint8_t msb, uint8_t lsb)
-{
+uint16_t to_uint16(uint8_t msb, uint8_t lsb) {
   // ------------------------------------------------------------
   //  to_uint16 : combine two bytes into one 16-bit value.
   //
@@ -97,8 +96,7 @@ uint16_t to_uint16(uint8_t msb, uint8_t lsb)
 
 //  Task 3 — Display helper  (optional, but keeps loop() clean)
 
-void display_values(uint16_t co2, uint16_t tvoc)
-{
+void display_values(uint16_t co2, uint16_t tvoc) {
   // ------------------------------------------------------------
   //  display_values : show co2 and tvoc on the OLED
   //
@@ -110,19 +108,19 @@ void display_values(uint16_t co2, uint16_t tvoc)
   //                Remember: constrain pct to [0, 100] before mapping.
 }
 
-void setup()
-{
+void setup() {
   Serial.begin(115200);
   while (!Serial)
     ; // Wait for USB Serial connection
   //     Task 2 i.): I2C scanner
-  // TODO: Transmit to each available I2C address, print the adress when receiving an ACK.
-  //       You can use decimal adresses when sending but convert them to hex when printing them out.
-  //       Use Serial.print(address, HEX) to make it easier.
+  // TODO: Transmit to each available I2C address, print the adress when
+  // receiving an ACK.
+  //       You can use decimal adresses when sending but convert them to hex
+  //       when printing them out. Use Serial.print(address, HEX) to make it
+  //       easier.
 
-  for (uint8_t addr = 0; addr <= 127; addr++)
-  {
-    //Wire.be(addr);
+  for (uint8_t addr = 0; addr <= 127; addr++) {
+    Wire.be(addr);
   }
 
   //     Task 2 iv.): Initialise SGP30
@@ -134,8 +132,7 @@ void setup()
   //       and push it to the screen.
 }
 
-void loop()
-{
+void loop() {
   // --- Task 2 iv.): Send measure command and read response ---
   // TODO: call sgp30_cmd() with the measure command bytes.
   // TODO: call sgp30_read().
