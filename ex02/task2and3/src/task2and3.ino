@@ -13,58 +13,82 @@
 #include "variant.h"
 #include "wiring_constants.h"
 #include "wiring_digital.h"
-#define GPIO 0x50000000
-#define OUTSET (GPIO + 0x508UL)
-#define IN (GPIO + 0x510UL)
-#define OUTCLR (GPIO + 0x50CUL)
-#define DIRSET (GPIO + 0x518UL)
-#define DIRCLR (GPIO + 0x51CUL)
-#define SPKPRT 0x313F8
 
-#define SPK D3
+#define GPIO 0x50000000
+
+#define SPK_BIT 29
+#define BUTTON_BIT 3
+
 #define C6 1046
 
 bool speaker_on;
+bool button_on;
 
 #include <Arduino.h>
 
+// -------------------------------------------------------------------
+// Utility Functions
+// -------------------------------------------------------------------
+
+void writeSpeaker(bool output) {
+  if (output) {
+    NRF_P0->DIRSET = (1UL << SPK_BIT);
+  } else {
+    NRF_P0->DIRCLR = (1UL << SPK_BIT);
+  }
+}
+
+void pinModeP0(unsigned long bit, bool output) {
+  if (output) {
+    NRF_P0->OUTSET = (1UL << bit);
+  } else {
+    NRF_P0->OUTCLR = (1UL << bit);
+  }
+}
+
+bool readButton() {
+  unsigned long reg = NRF_P0->IN;
+  Serial.println(reg, BIN);
+  return reg & (1UL << BUTTON_BIT);
+}
+
 void setBuzzerFreq(unsigned long freq) {
 
-    NRF_TIMER1->CC[0] = round(1000000.0 / (2 * freq)); // e.g. 2092 for frew
-
+  NRF_TIMER1->CC[0] = round(1000000.0 / (2 * freq)); // e.g. 2092 for frew
 }
 
 void setTimer1Freq() {
-    // NRF_TIMER1->TASKS_STOP = 1;
-    // NRF_TIMER1->TASKS_CLEAR = 1;
+  NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
+  NRF_TIMER1->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
+  NRF_TIMER1->PRESCALER = 4; // ~= 1MHz
 
-    NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
-    NRF_TIMER1->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
-    NRF_TIMER1->PRESCALER = 4; // ~= 1MHz
+  NRF_TIMER1->SHORTS = TIMER_SHORTS_COMPARE0_CLEAR_Msk;
+  NRF_TIMER1->INTENSET = TIMER_INTENSET_COMPARE0_Msk;
 
-    NRF_TIMER1->SHORTS = TIMER_SHORTS_COMPARE0_CLEAR_Msk;
-    NRF_TIMER1->INTENSET = TIMER_INTENSET_COMPARE0_Msk;
+  NVIC_EnableIRQ(TIMER1_IRQn);
 
-    NVIC_EnableIRQ(TIMER1_IRQn);
-
-    NRF_TIMER1->TASKS_START = 1;
+  NRF_TIMER1->TASKS_START = 1;
 }
 
 void setup() {
-  pinMode(SPK, OUTPUT);
+  pinModeP0(BUTTON_BIT, false);
+  pinModeP0(SPK_BIT, true);
 
   setTimer1Freq();
   setBuzzerFreq(1046);
+
+  Serial.begin(115200);
 }
 
-
 void loop() {
+  button_on = readButton();
+  Serial.printf("%d", button_on);
 }
 
 extern "C" void TIMER1_IRQHandler() {
-    if (NRF_TIMER1->EVENTS_COMPARE[0]) {
-        NRF_TIMER1->EVENTS_COMPARE[0] = 0;
-        speaker_on = !speaker_on;
-        digitalWrite(SPK, speaker_on);
-    }
+  if (NRF_TIMER1->EVENTS_COMPARE[0]) {
+    NRF_TIMER1->EVENTS_COMPARE[0] = 0;
+    speaker_on = !speaker_on;
+    writeSpeaker(speaker_on && button_on);
+  }
 }

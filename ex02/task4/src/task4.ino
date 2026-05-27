@@ -42,24 +42,4 @@ extern "C" void TIMER1_IRQHandler() {
 }
 
 
-void ourPinMode(unsigned long pin, bool output) {
-  if (output) {
-    *(unsigned long *)DIRSET = (1UL << pin);
-  } else {
-    *(unsigned long *)DIRCLR = (1UL << pin);
-  }
-}
-
-void ourDigitalWrite(unsigned long pin, bool high) {
-  if (high) {
-    *(unsigned long *)OUTSET = (1UL << pin);
-  } else {
-    *(unsigned long *)OUTCLR = (1UL << pin);
-  }
-}
-
-bool ourDigitalRead(unsigned long pin) {
-  return (*(unsigned long*) IN) & (1UL << pin);
-  }
-
 
