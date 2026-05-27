@@ -8,6 +8,7 @@
 // ------------------------------------------------------------
 
 #include "delay.h"
+#include "nrf52840_bitfields.h"
 #include "variant.h"
 #include "wiring_constants.h"
 #include "wiring_digital.h"
@@ -21,6 +22,8 @@
 
 #define SPK D3
 #define C6 1046
+
+volatile int tickCount;
 
 #include <Arduino.h>
 
@@ -38,11 +41,18 @@ void loop() {
     digitalWrite(SPK, LOW);
     delayMicroseconds(1000000/C6/2);
 
-    Serial.printf("%X\n", &D3);
+    // Serial.printf("%X\n", &D3);
+    Serial.printf("%d\n", round(32.768 / 10) - 1);
 }
 
 
 void setTimer1Freq() {
+    NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
+    NRF_TIMER1->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
+    NRF_TIMER1->PRESCALER = 4; // ~= 1MHz
+    NRF_TIMER1->CC[0] = 2092;
+    NRF_TIMER1->SHORTS = TIMER_SHORTS_COMPARE0_CLEAR_Msk;
+    NRF_TIMER1->INTENSET = TIMER_INTENSET_COMPARE0_Msk;
 
 }
 
@@ -53,5 +63,8 @@ void setBuzzerFreq() {
 
 
 extern "C" void TIMER1_IRQHandler() {
-
+    if (NRF_TIMER1->EVENTS_COMPARE[0]) {
+        NRF_TIMER1->EVENTS_COMPARE[0] = 0;
+        tickCount++;
+    }
 }
