@@ -6,17 +6,17 @@
 
 void ourPinMode(unsigned long pin, bool high) {
   if (high) {
-    *(unsigned long *)DIRSET = (1 << pin);
+    *(unsigned long *)DIRSET = (1UL << pin);
   } else {
-    *(unsigned long *)DIRCLR = (1 << pin);
+    *(unsigned long *)DIRCLR = (1Ul << pin);
   }
 }
 
 void setP026(bool high) {
   if (high) {
-    *(unsigned long *)OUTSET = (1 << 26);
+    *(unsigned long *)OUTSET = (1UL << 26);
   } else {
-    *(unsigned long *)OUTCLR = (1 << 26);
+    *(unsigned long *)OUTCLR = (1UL << 26);
   }
 }
 
