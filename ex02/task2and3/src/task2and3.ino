@@ -8,6 +8,8 @@
 // ------------------------------------------------------------
 
 #include "delay.h"
+#include "variant.h"
+#include "wiring_constants.h"
 #include "wiring_digital.h"
 #define GPIO 0x50000000
 #define OUTSET (GPIO + 0x508UL)
@@ -15,6 +17,7 @@
 #define OUTCLR (GPIO + 0x50CUL)
 #define DIRSET (GPIO + 0x518UL)
 #define DIRCLR (GPIO + 0x51CUL)
+#define SPKPORT 0x313F8
 
 #define SPK D3
 #define C6 1046
@@ -23,6 +26,9 @@
 
 void setup() {
   pinMode(SPK, OUTPUT);
+
+  Serial.begin(115200);
+  while (!Serial) {;}
 }
 
 
@@ -32,6 +38,7 @@ void loop() {
     digitalWrite(SPK, LOW);
     delayMicroseconds(1000000/C6/2);
 
+    Serial.printf("%X\n", &D3);
 }
 
 
@@ -48,4 +55,3 @@ void setBuzzerFreq() {
 extern "C" void TIMER1_IRQHandler() {
 
 }
-
