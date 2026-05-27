@@ -32,25 +32,22 @@ bool button_on;
 
 void writeSpeaker(bool output) {
   if (output) {
-    NRF_P0->DIRSET = (1UL << SPK_BIT);
+    NRF_P0->OUTSET = (1UL << SPK_BIT);
   } else {
-    NRF_P0->DIRCLR = (1UL << SPK_BIT);
+    NRF_P0->OUTCLR = (1UL << SPK_BIT);
   }
 }
 
 void pinModeP0(unsigned long bit, bool output) {
   if (output) {
-    NRF_P0->OUTSET = (1UL << bit);
+    NRF_P0->DIRSET = (1UL << bit);
   } else {
-    NRF_P0->OUTCLR = (1UL << bit);
+    NRF_P0->DIRCLR = (1UL << bit);
   }
 }
 
-bool readButton() {
-  unsigned long reg = NRF_P0->IN;
-  Serial.println(reg, BIN);
-  return reg & (1UL << BUTTON_BIT);
-}
+// RETURNS true if button is pressed
+bool readButton() { return !(NRF_P0->IN & (1UL << BUTTON_BIT)); }
 
 void setBuzzerFreq(unsigned long freq) {
 
@@ -71,19 +68,17 @@ void setTimer1Freq() {
 }
 
 void setup() {
-  pinModeP0(BUTTON_BIT, false);
+  pinMode(D1, INPUT_PULLUP);
+  // pinModeP0(BUTTON_BIT, false);
   pinModeP0(SPK_BIT, true);
 
   setTimer1Freq();
   setBuzzerFreq(1046);
 
-  Serial.begin(115200);
+  // Serial.begin(115200);
 }
 
-void loop() {
-  button_on = readButton();
-  Serial.printf("%d", button_on);
-}
+void loop() { button_on = readButton(); }
 
 extern "C" void TIMER1_IRQHandler() {
   if (NRF_TIMER1->EVENTS_COMPARE[0]) {
