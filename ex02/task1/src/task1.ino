@@ -4,15 +4,6 @@
 #define DIRSET (GPIO + 0x518UL)
 #define DIRCLR (GPIO + 0x51CUL)
 
-void setup() { ourPinMode(26, HIGH); }
-
-void loop() {
-  setP026(true);
-  delay(1000);
-  setP026(false);
-  delay(1000);
-}
-
 void ourPinMode(unsigned long pin, bool high) {
   if (high) {
     *(unsigned long *)DIRSET = (1 << pin);
@@ -27,4 +18,13 @@ void setP026(bool high) {
   } else {
     *(unsigned long *)OUTCLR = (1 << 26);
   }
+}
+
+void setup() { ourPinMode(26, HIGH); }
+
+void loop() {
+  setP026(true);
+  delay(1000);
+  setP026(false);
+  delay(1000);
 }
