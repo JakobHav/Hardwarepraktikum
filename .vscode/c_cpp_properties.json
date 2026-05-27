@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/opt/homebrew/bin/gcc-15",
+            "cStandard": "c17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "macos-gcc-arm64",
+            "compileCommands": [
+                "${workspaceFolder}/ex01/hwp_sheet_01_task_2-4/compile_commands.json"
+            ]
+        }
+    ],
+    "version": 4
+}
