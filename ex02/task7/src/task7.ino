@@ -2,23 +2,153 @@
 // ------------------------------------------------------------
 //  Task 7:
 //      Use your code from Task 6, adding a parser function to
-//      go over any given string and create the array needed to play 
+//      go over any given string and create the array needed to play
 //      it.
 //      You are free to use or discard any helper functions and add
 //      any helper functions you need for parsing.
 // ------------------------------------------------------------
 
+#include "WCharacter.h"
 #include <Adafruit_TinyUSB.h>
 #include <Arduino.h>
+#include <cstdint>
+
+#define GPIO 0x50000000
+
+#define SPK_BIT 29
+#define BUTTON_BIT 3
+
+bool speaker_on;
+
 const char noteNames[] = {'c', 'C', 'd', 'D', 'e', 'f', 'F', 'g', 'G', 'a', 'A', 'b'};
 const uint16_t notes[] = {262, 277, 294, 311, 330, 349, 370, 392, 415, 440, 466, 494};
-char buffer[]="Test:d=4,o=5,b=200:8g,8a,8c6,8a,e6,8p,e6,8p,d6.,8p,8g,8a,8c6,8a,d6,8p,d6,8p,c6,8p,a.,8g,8a,8c6,8a,2c6,d6,b,a,g.,8p,g,2d6,2c6.,p,8g,8a,8c6,8a,e6,8p,e6,8p,d6.,8p,8g,8a,8c6,8a,g6,b,c6,8p,b,8a,p,8g,8a,8c6,8a,2c6,d6,b,a,g,p,g,d6,c6"
+char buffer[]="Test:d=4,o=5,b=200:8g,8a,8c6,8a,e6,8p,e6,8p,d6.,8p,8g,8a,8c6,8a,d6,8p,d6,8p,c6,8p,a.,8g,8a,8c6,8a,2c6,d6,b,a,g.,8p,g,2d6,2c6.,p,8g,8a,8c6,8a,e6,8p,e6,8p,d6.,8p,8g,8a,8c6,8a,g6,b,c6,8p,b,8a,p,8g,8a,8c6,8a,2c6,d6,b,a,g,p,g,d6,c6";
 volatile uint8_t melodyIdx = 0;
 volatile uint32_t tCount = 0;
 uint16_t standardDuration = 4;
 uint16_t standardOctave = 6;
 uint16_t standardBPM = 63;
 
+typedef struct {
+    uint16_t duration;
+    uint16_t freq;
+} Note;
+
+// ===================================
+// Utility Functions
+// ===================================
+
+void writeSpeaker(bool output) {
+  if (output) {
+    NRF_P0->OUTSET = (1UL << SPK_BIT);
+  } else {
+    NRF_P0->OUTCLR = (1UL << SPK_BIT);
+  }
+}
+
+void pinModeP0(unsigned long bit, bool output) {
+  if (output) {
+    NRF_P0->DIRSET = (1UL << bit);
+  } else {
+    NRF_P0->DIRCLR = (1UL << bit);
+  }
+}
+
+// ============================================
+// Timer / Buzzer
+// ============================================
+
+
+void setTimer1Freq() {
+  NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
+  NRF_TIMER1->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
+  NRF_TIMER1->PRESCALER = 4; // 16Mhz/2^4~= 1MHz
+
+  NRF_TIMER1->SHORTS = TIMER_SHORTS_COMPARE0_CLEAR_Msk;
+  NRF_TIMER1->INTENSET = TIMER_INTENSET_COMPARE0_Msk;
+
+  NVIC_EnableIRQ(TIMER1_IRQn);
+
+  NRF_TIMER1->TASKS_START = 1;
+}
+
+void setBuzzerFreq(unsigned long freq) {
+  if (freq >= 100 && freq <= 3000) {
+    NRF_TIMER1->TASKS_CLEAR = 1;
+    NRF_TIMER1->CC[0] = round(1000000.0 / (2 * freq)); // e.g. 2092 for frew
+  } else {
+    writeSpeaker(false);
+  }
+}
+
+void setTimer2(bool enable) {
+  if (enable) {
+    NRF_TIMER2->MODE = TIMER_MODE_MODE_Timer;
+    NRF_TIMER2->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
+    NRF_TIMER2->PRESCALER = 4; // 16Mhz/2^4~= 1MHz
+
+    NRF_TIMER2->SHORTS = TIMER_SHORTS_COMPARE1_CLEAR_Msk;
+    NRF_TIMER2->INTENSET = TIMER_INTENSET_COMPARE1_Msk;
+
+    NVIC_EnableIRQ(TIMER2_IRQn);
+
+    NRF_TIMER2->CC[1] = 1000;
+
+    tCount = 0;
+
+    NRF_TIMER2->TASKS_START = 1;
+  } else {
+    NRF_TIMER2->TASKS_CLEAR = 1;
+    NRF_TIMER2->TASKS_STOP = 1;
+  }
+}
+
+// ============================================
+// Melody Functions
+// ============================================
+
+
+void playRTTTL() {
+
+}
+
+// ============================================
+// Helper functions
+// ============================================
+
+
+bool parseRTTLNote(Note * note) {
+
+}
+
+
+uint16_t freqFromNote(char note, bool sharp) {
+    uint8_t noteIndex = 0;
+    for (int i = 0; i < 12; i++) {
+        if (noteNames[i] == note)
+            noteIndex = i;
+    }
+
+    return sharp ? noteNames[noteIndex + 1] : noteNames[noteIndex];
+}
+
+
+uint16_t str2uint(char * buf, uint16_t * idx) {
+    uint16_t result;
+    while (isDigit(buf[*idx])) {
+        result = result * 10 + (buf[*idx] - '0');
+    }
+    return result;
+}
+
+
+bool isDigit(char c) {
+    return c >= '0' && c <= '9';
+}
+
+// ============================================
+// Setup + Loop
+// ============================================
 
 void setup() {
   String song0 = "";
@@ -37,48 +167,20 @@ void setup() {
 }
 
 
-void loop() {
-
-}
+void loop() {}
 
 
-void playRTTTL() {
-
-}
-
-
-bool parseRTTLNote(Note * note) {
-
-}
-
-
-uint16_t freqFromNote(char note, bool sharp) {
-
-}
-
-
-uint16_t str2uint(char * buf, uint16_t * idx) {
-
-}
-
-
-bool isDigit(char c) { 
-
-}
-
-
-void setBuzzerFreq(uint32_t freq) {
-
-}
+// ============================================
+// Interrupt Service Routines
+// ============================================
 
 
 extern "C" void TIMER1_IRQHandler() {
-
-}
-
-
-void setTimer2(bool enable) {
-
+    if (NRF_TIMER1->EVENTS_COMPARE[0]) {
+      NRF_TIMER1->EVENTS_COMPARE[0] = 0;
+      speaker_on = !speaker_on;
+      writeSpeaker(speaker_on);
+    }
 }
 
 
