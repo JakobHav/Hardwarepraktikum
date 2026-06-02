@@ -1,11 +1,7 @@
-
-// ------------------------------------------------------------
-//  Task 5:
-//      Write the body of setTimer2() as specified in the exercise sheet.
-//      This should include timer settings.
-//      Implement the ISR in TIMER2_IRQHandler().
-// ------------------------------------------------------------
-
+# 1 "/var/folders/1w/ncpb_8bs1m5_713wt5691vn80000gn/T/tmp_88ppi25"
+#include <Arduino.h>
+# 1 "/Users/jakobhaverkamp/Documents/uni/hardwarepraktikum/Hardwarepraktikum/ex02/task5/src/task5.ino"
+# 9 "/Users/jakobhaverkamp/Documents/uni/hardwarepraktikum/Hardwarepraktikum/ex02/task5/src/task5.ino"
 #include "delay.h"
 #include "nrf52840.h"
 #include "nrf52840_bitfields.h"
@@ -26,11 +22,15 @@ bool speaker_on;
 bool button_on;
 
 volatile uint32_t tCount;
-
-// -------------------------------------------------------------------
-// Utility Functions
-// -------------------------------------------------------------------
-
+void writeSpeaker(bool output);
+void pinModeP0(unsigned long bit, bool output);
+bool readButton();
+void setTimer1Freq();
+void setBuzzerFreq(unsigned long freq);
+void setTimer2(bool enable);
+void setup();
+void loop();
+#line 34 "/Users/jakobhaverkamp/Documents/uni/hardwarepraktikum/Hardwarepraktikum/ex02/task5/src/task5.ino"
 void writeSpeaker(bool output) {
   if (output) {
     NRF_P0->OUTSET = (1UL << SPK_BIT);
@@ -49,14 +49,14 @@ void pinModeP0(unsigned long bit, bool output) {
 
 bool readButton() { return !(NRF_P0->IN & (1UL << BUTTON_BIT)); }
 
-// -------------------------------------------------------------------
-// Setting Timer and Buzzer
-// -------------------------------------------------------------------
+
+
+
 
 void setTimer1Freq() {
   NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
   NRF_TIMER1->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
-  NRF_TIMER1->PRESCALER = 4; // 16Mhz/2^4~= 1MHz
+  NRF_TIMER1->PRESCALER = 4;
 
   NRF_TIMER1->SHORTS = TIMER_SHORTS_COMPARE0_CLEAR_Msk;
   NRF_TIMER1->INTENSET = TIMER_INTENSET_COMPARE0_Msk;
@@ -69,7 +69,7 @@ void setTimer1Freq() {
 void setBuzzerFreq(unsigned long freq) {
   if (freq >= 100 && freq <= 3000) {
 
-    NRF_TIMER1->CC[0] = round(1000000.0 / (2 * freq)); // e.g. 2092 for frew
+    NRF_TIMER1->CC[0] = round(1000000.0 / (2 * freq));
   } else {
     writeSpeaker(false);
   }
@@ -79,7 +79,7 @@ void setTimer2(bool enable) {
   if (enable) {
     NRF_TIMER2->MODE = TIMER_MODE_MODE_Timer;
     NRF_TIMER2->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
-    NRF_TIMER2->PRESCALER = 4; // 16Mhz/2^4~= 1MHz
+    NRF_TIMER2->PRESCALER = 4;
 
     NRF_TIMER2->SHORTS = TIMER_SHORTS_COMPARE0_CLEAR_Msk;
     NRF_TIMER2->INTENSET = TIMER_INTENSET_COMPARE0_Msk;
@@ -97,17 +97,17 @@ void setTimer2(bool enable) {
   }
 }
 
-// -------------------------------------------------------------------
-// Setup and Loop
-// -------------------------------------------------------------------
-//
-//
+
+
+
+
+
 void setup() {
   pinMode(D1, INPUT_PULLUP);
   pinModeP0(SPK_BIT, true);
 
-  // setTimer1Freq();
-  // setBuzzerFreq(1046);
+
+
   button_on = false;
 
   Serial.begin(115200);
@@ -123,9 +123,9 @@ void loop() {
   Serial.print(tCount);
 }
 
-// -------------------------------------------------------------------
-// ISRs
-// -------------------------------------------------------------------
+
+
+
 
 extern "C" void TIMER1_IRQHandler() {
   if (NRF_TIMER1->EVENTS_COMPARE[0]) {

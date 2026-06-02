@@ -1,9 +1,14 @@
+// ------------------------------------------------------------
+//  Task 4 (no change here as we already worked with different frequencies)
+// ------------------------------------------------------------
+
 #include "delay.h"
 #include "nrf52840.h"
 #include "nrf52840_bitfields.h"
 #include "variant.h"
 #include "wiring_constants.h"
 #include "wiring_digital.h"
+#include <ratio>
 
 #define GPIO 0x50000000
 
@@ -13,6 +18,7 @@
 #define C6 1046
 
 bool speaker_on;
+bool timer_stopped;
 bool button_on;
 
 #include <Arduino.h>
@@ -40,13 +46,25 @@ void pinModeP0(unsigned long bit, bool output) {
 // RETURNS true if button is pressed
 bool readButton() { return !(NRF_P0->IN & (1UL << BUTTON_BIT)); }
 
+// -------------------------------------------------------------------
+// Timer and Buzzer
+// -------------------------------------------------------------------
+
+void stopTimer() {
+
+  writeSpeaker(false);
+  timer_stopped = true;
+  NRF_TIMER1->TASKS_STOP = 1;
+}
+
+// setBuzzerFreq
 void setBuzzerFreq(unsigned long freq) {
   if (freq >= 100 && freq <= 3000) {
-
-    NRF_TIMER1->CC[0] = round(1000000.0 / (2 * freq)); // e.g. 2092 for frew
+    setTimer1Freq();
+    NRF_TIMER1->CC[0] = round(1000000.0 / (2 * freq));
+    timer_stopped = false;
   } else {
-    writeSpeaker(false);
-    NRF_TIMER1->TASKS_STOP = 1;
+    stopTimer();
   }
 }
 
@@ -63,40 +81,42 @@ void setTimer1Freq() {
   NRF_TIMER1->TASKS_START = 1;
 }
 
+// -------------------------------------------------------------------
+// Setup and Loop
+// -------------------------------------------------------------------
+
 void setup() {
   pinMode(D1, INPUT_PULLUP);
-  // pinModeP0(BUTTON_BIT, false);
   pinModeP0(SPK_BIT, true);
 
-  setTimer1Freq();
-  setBuzzerFreq(1046);
+  timer_stopped = true;
 
-  button_on = false;
   // Serial.begin(115200);
 }
 
+int freq = 100;
 void loop() {
-  // tests
-  setBuzzerFreq(440); // A4
-  delay(300);
-  setBuzzerFreq(554); // C#5
-  delay(300);
-  setBuzzerFreq(659); // E5
-  delay(300);
-  setBuzzerFreq(880); // A5
-  delay(500);
-  setBuzzerFreq(5000); // out of range
-  delay(3000);
-  for (int f = 100; f <= 3000; f += 50) {
-    setBuzzerFreq(f);
-    delay(20);
+  if (readButton()) {
+    if (timer_stopped) {
+      freq += 100;
+      setBuzzerFreq(freq);
+      delay(200); // Debounce Delay
+    } else {
+      stopTimer();
+      delay(200); // Debounce Delay
+    }
   }
+  // Serial.println(timer_stopped);
 }
+
+// -------------------------------------------------------------------
+// Interrupt to controll the Speaker
+// -------------------------------------------------------------------
 
 extern "C" void TIMER1_IRQHandler() {
   if (NRF_TIMER1->EVENTS_COMPARE[0]) {
     NRF_TIMER1->EVENTS_COMPARE[0] = 0;
     speaker_on = !speaker_on;
-    writeSpeaker(speaker_on && !button_on);
+    writeSpeaker(speaker_on);
   }
 }
