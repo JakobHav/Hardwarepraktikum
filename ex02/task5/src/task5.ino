@@ -6,6 +6,7 @@
 //      Implement the ISR in TIMER2_IRQHandler().
 // ------------------------------------------------------------
 
+#include "Adafruit_USBD_CDC.h"
 #include "delay.h"
 #include "nrf52840.h"
 #include "nrf52840_bitfields.h"
@@ -81,8 +82,8 @@ void setTimer2(bool enable) {
     NRF_TIMER2->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
     NRF_TIMER2->PRESCALER = 4; // 16Mhz/2^4~= 1MHz
 
-    NRF_TIMER2->SHORTS = TIMER_SHORTS_COMPARE0_CLEAR_Msk;
-    NRF_TIMER2->INTENSET = TIMER_INTENSET_COMPARE0_Msk;
+    NRF_TIMER2->SHORTS = TIMER_SHORTS_COMPARE1_CLEAR_Msk;
+    NRF_TIMER2->INTENSET = TIMER_INTENSET_COMPARE1_Msk;
 
     NVIC_EnableIRQ(TIMER2_IRQn);
 
@@ -111,7 +112,9 @@ void setup() {
   button_on = false;
 
   Serial.begin(115200);
-  delay(2000);
+  while (!Serial)
+      ;
+  delay(500);
   setTimer2(true);
 }
 
@@ -120,7 +123,6 @@ void loop() {
     Serial.println(tCount);
     tCount = 0;
   }
-  Serial.print(tCount);
 }
 
 // -------------------------------------------------------------------
