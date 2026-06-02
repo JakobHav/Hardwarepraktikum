@@ -12,6 +12,7 @@
 #include <Adafruit_TinyUSB.h>
 #include <Arduino.h>
 #include <cstdint>
+#include <cstring>
 #include <string.h>
 
 #define GPIO 0x50000000
@@ -113,28 +114,23 @@ void setTimer2(bool enable) {
 // Melody Functions
 // ============================================
 
-void playRTTTL() {}
+void playRTTTL(Note *melody) {}
 
 // ============================================
 // Helper functions
 // ============================================
 
-Note *melodyFromString(char* mel) {
+Note *melodyFromString(char *mel) {
   uint32_t len = strlen(mel);
 
   Note *melody = new Note[len];
   char *buf = new char[len];
   uint8_t bufIdx = 0;
 
-  for (int i = 0; i < len; i++) {
-      if (mel[i] == ':' || mel[i] == ',') {
-          buf[bufIdx] = '\0';
-          Serial.println(buf);
-          bufIdx = 0;
-    } else {
-        buf[bufIdx++] = mel[i];
-    }
-  }
+  uint8_t counter = 0;
+  strtok(mel, ':');
+  char *start = strtok(mel, ':');
+ 
 
   delete[] buf;
   return melody;
@@ -151,29 +147,32 @@ uint16_t freqFromNote(char note) {
 }
 
 uint16_t makelonger(uint16_t duration, bool longer) {
-    return longer ? (uint16_t)round(duration * 1.5) : duration;
+  return longer ? (uint16_t)round(duration * 1.5) : duration;
 }
 
-Note parseRTTLNote(char* rt_note, uint16_t std_duration, uint16_t std_octave) {
-    size_t len = strlen(rt_note);
-    bool longer = rt_note[len - 1] == '.';
-    len = longer ? len - 1 : len;
+Note parseRTTLNote(char *rt_note, uint16_t std_duration, uint16_t std_octave) {
+  size_t len = strlen(rt_note);
+  bool longer = rt_note[len - 1] == '.';
+  len = longer ? len - 1 : len;
 
-    switch (len) {
-        case 1:
-            return Note { std_duration, freqFromNote(rt_note[0]), std_octave };
-            break;
-        case 2:
-            // either 8a or d6
-            if (isDigit(rt_note[0]))
-                return Note { makelonger(rt_note[0], longer), freqFromNote(rt_note[1]), std_octave };
-            else
-                return Note {  makelonger(std_duration, longer), freqFromNote(rt_note[0]), rt_note[1] };
-            break;
-        case 3:
-            return Note { makelonger(rt_note[0], longer), freqFromNote(rt_note[1]), rt_note[2] };
-            break;
-    }
+  switch (len) {
+  case 1:
+    return Note{std_duration, freqFromNote(rt_note[0]), std_octave};
+    break;
+  case 2:
+    // either 8a or d6
+    if (isDigit(rt_note[0]))
+      return Note{makelonger(rt_note[0], longer), freqFromNote(rt_note[1]),
+                  std_octave};
+    else
+      return Note{makelonger(std_duration, longer), freqFromNote(rt_note[0]),
+                  rt_note[1]};
+    break;
+  case 3:
+    return Note{makelonger(rt_note[0], longer), freqFromNote(rt_note[1]),
+                rt_note[2]};
+    break;
+  }
 }
 
 uint16_t str2uint(char *buf, uint16_t *idx) {
@@ -226,18 +225,14 @@ void setup() {
   Serial.begin(115200);
 
   unsigned long start = millis();
-  while (!Serial && millis() - start < 3000);
+  while (!Serial && millis() - start < 3000)
+    ;
 
-  Serial.println("Test");
-
-  melodyFromString(buffer);
-
-  playRTTTL();
+  Note *mel = melodyFromString(buffer);
+  playRTTTL(mel);
 }
 
-void loop() {
-    melodyFromString(buffer);
-}
+void loop() {}
 
 // ============================================
 // Interrupt Service Routines
