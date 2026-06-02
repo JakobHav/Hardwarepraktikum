@@ -128,9 +128,14 @@ Note *melodyFromString(char *mel) {
   uint8_t bufIdx = 0;
 
   uint8_t counter = 0;
-  strtok(mel, ':');
-  char *start = strtok(mel, ':');
- 
+
+  char *start = strtok(mel, ":");
+
+  while (uint16_t i = 0; i < strlen(start); i++) {
+    Serial.println(*(start+1));
+    start = strtok(nullptr, ":");
+  }
+
 
   delete[] buf;
   return melody;
@@ -232,7 +237,8 @@ void setup() {
   playRTTTL(mel);
 }
 
-void loop() {}
+void loop() {Note *mel = melodyFromString(buffer);
+playRTTTL(mel);}
 
 // ============================================
 // Interrupt Service Routines
