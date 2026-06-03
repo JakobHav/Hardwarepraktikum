@@ -42,6 +42,12 @@ typedef struct {
   uint16_t octave;
 } Note;
 
+Note *currentMelody = nullptr;
+
+// define beforehand so the code knows it exists
+Note parseRTTLNote(char *rt_note, uint16_t std_duration, uint16_t std_octave);
+uint16_t freqFromNote(char note);
+
 // ===================================
 // Utility Functions
 // ===================================
@@ -114,33 +120,86 @@ void setTimer2(bool enable) {
 // Melody Functions
 // ============================================
 
-void playRTTTL(Note *melody) {}
+// returns the adjusted frequency for a note
+// respecting the octave
+static uint16_t adjustedFreq(const Note &n) {
+  int diff = (int)n.octave - 4;
+  uint16_t f = n.freq;
+  if (diff > 0)
+    f <<= diff;
+  else if (diff < 0)
+    f >>= (-diff);
+  return f;
+}
+
+// plays the melody stored in `melody`
+void playRTTTL(Note *melody) {
+  currentMelody = melody;
+  melodyIdx = 0;
+
+  if (melody[0].freq > 0)
+    setBuzzerFreq(adjustedFreq(melody[0]));
+  else
+    writeSpeaker(false);
+
+  setTimer2(true);
+}
 
 // ============================================
 // Helper functions
 // ============================================
 
+// parses an RTTL note string into a Note struct
 Note *melodyFromString(char *mel) {
   uint32_t len = strlen(mel);
+  char *copy = new char[len + 1];
+  strcpy(copy, mel);
 
-  Note *melody = new Note[len];
-  char *buf = new char[len];
-  uint8_t bufIdx = 0;
+  // RTTL format: name:d=X,o=Y,b=Z:<duration><note><octave><dotted>
+  strtok(copy, ":");
+  char *defs = strtok(nullptr, ":");
+  char *note_str = strtok(nullptr, "");
 
-  uint8_t counter = 0;
-
-  char *start = strtok(mel, ":");
-
-  while (uint16_t i = 0; i < strlen(start); i++) {
-    Serial.println(*(start+1));
-    start = strtok(nullptr, ":");
+  // Parse defaults
+  char *def_tok = strtok(defs, ",");
+  while (def_tok) {
+    if (def_tok[1] == '=') {
+      int val = atoi(&def_tok[2]);
+      if (def_tok[0] == 'd')
+        standardDuration = val;
+      else if (def_tok[0] == 'o')
+        standardOctave = val;
+      else if (def_tok[0] == 'b')
+        standardBPM = val;
+    }
+    def_tok = strtok(nullptr, ",");
   }
 
+  // Count comma-separated notes to size the array
+  uint16_t count = 1;
+  for (char *p = note_str; *p; p++)
+    if (*p == ',')
+      count++;
 
-  delete[] buf;
+  Note *melody = new Note[count + 1]; // safeguard
+
+  // Parse each note
+  char *note_copy = new char[strlen(note_str) + 1];
+  strcpy(note_copy, note_str);
+  uint16_t i = 0;
+  char *tok = strtok(note_copy, ",");
+  while (tok) {
+    melody[i++] = parseRTTLNote(tok, standardDuration, standardOctave);
+    tok = strtok(nullptr, ",");
+  }
+  melody[i] = Note{0, 0, 0}; // safeguard
+
+  delete[] note_copy;
+  delete[] copy;
   return melody;
 }
 
+// returns the frequency of a note given its letter
 uint16_t freqFromNote(char note) {
   uint8_t noteIndex = 0;
   for (int i = 0; i < 12; i++) {
@@ -148,44 +207,38 @@ uint16_t freqFromNote(char note) {
       noteIndex = i;
   }
 
-  return noteNames[noteIndex];
+  return notes[noteIndex];
 }
 
-uint16_t makelonger(uint16_t duration, bool longer) {
-  return longer ? (uint16_t)round(duration * 1.5) : duration;
-}
-
+// parses an RTTL note string into a Note struct
 Note parseRTTLNote(char *rt_note, uint16_t std_duration, uint16_t std_octave) {
-  size_t len = strlen(rt_note);
-  bool longer = rt_note[len - 1] == '.';
-  len = longer ? len - 1 : len;
+  uint8_t idx = 0;
+  uint16_t note_value = 0;
 
-  switch (len) {
-  case 1:
-    return Note{std_duration, freqFromNote(rt_note[0]), std_octave};
-    break;
-  case 2:
-    // either 8a or d6
-    if (isDigit(rt_note[0]))
-      return Note{makelonger(rt_note[0], longer), freqFromNote(rt_note[1]),
-                  std_octave};
-    else
-      return Note{makelonger(std_duration, longer), freqFromNote(rt_note[0]),
-                  rt_note[1]};
-    break;
-  case 3:
-    return Note{makelonger(rt_note[0], longer), freqFromNote(rt_note[1]),
-                rt_note[2]};
-    break;
-  }
-}
+  // optional duration
+  while (rt_note[idx] && isDigit(rt_note[idx]))
+    note_value = note_value * 10 + (rt_note[idx++] - '0');
+  if (note_value == 0)
+    note_value = std_duration;
 
-uint16_t str2uint(char *buf, uint16_t *idx) {
-  uint16_t result;
-  while (isDigit(buf[*idx])) {
-    result = result * 10 + (buf[*idx] - '0');
-  }
-  return result;
+  // note letter
+  char note_char = rt_note[idx++];
+
+  // optional octave
+  uint16_t octave = std_octave;
+  if (rt_note[idx] && isDigit(rt_note[idx]))
+    octave = rt_note[idx++] - '0';
+
+  // optional dot
+  bool dotted = (rt_note[idx] == '.');
+
+  // save ms duration directly in note struct
+  uint32_t base_ms = (60000UL / standardBPM) * 4 / note_value;
+  uint16_t duration_ms =
+      dotted ? (uint16_t)round(base_ms * 1.5) : (uint16_t)base_ms;
+
+  uint16_t freq = (note_char == 'p') ? 0 : freqFromNote(note_char);
+  return Note{duration_ms, freq, octave};
 }
 
 bool isDigit(char c) { return c >= '0' && c <= '9'; }
@@ -227,18 +280,21 @@ void setup() {
                   "4a,4p,8p,c6,b,4c6,4e,4p,8p,a,g,8a,8g,8f#,8a,4g.,f#,g,4a.,g,"
                   "a,8b,8a,8g,8f#,4e,4c6,2b.,b,c6,b,a,1b";
 
+  pinModeP0(SPK_BIT, true);
+
   Serial.begin(115200);
 
   unsigned long start = millis();
   while (!Serial && millis() - start < 3000)
     ;
 
+  setTimer1Freq();
+
   Note *mel = melodyFromString(buffer);
   playRTTTL(mel);
 }
 
-void loop() {Note *mel = melodyFromString(buffer);
-playRTTTL(mel);}
+void loop() {}
 
 // ============================================
 // Interrupt Service Routines
@@ -252,4 +308,23 @@ extern "C" void TIMER1_IRQHandler() {
   }
 }
 
-extern "C" void TIMER2_IRQHandler() {}
+extern "C" void TIMER2_IRQHandler() {
+  if (NRF_TIMER2->EVENTS_COMPARE[1]) {
+    NRF_TIMER2->EVENTS_COMPARE[1] = 0;
+
+    if (tCount >= currentMelody[melodyIdx].duration) {
+      tCount = 0;
+      melodyIdx++;
+
+      if (currentMelody[melodyIdx].duration == 0)
+        melodyIdx = 0;
+
+      if (currentMelody[melodyIdx].freq > 0)
+        setBuzzerFreq(adjustedFreq(currentMelody[melodyIdx]));
+      else
+        writeSpeaker(false);
+    }
+
+    tCount++;
+  }
+}
