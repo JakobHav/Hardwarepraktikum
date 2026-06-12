@@ -353,11 +353,13 @@ void loop() {
 
     setTimer2(false);
     writeSpeaker(false);
-    delete[] currentMelody;
+
+    delete[] currentMelody; // Freeing the melody memory!!
     currentMelody = nullptr;
 
     songIdx = (songIdx + 1) % NUM_SONGS;
 
+    // Converting melody and playing
     Note *mel = melodyFromString(songs[songIdx]);
     playRTTTL(mel);
     showSong(songs[songIdx]);

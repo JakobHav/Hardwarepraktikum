@@ -17,21 +17,20 @@
 #include <cstdint>
 
 uint16_t durations[10] = {200, 200, 200, 200, 200, 200, 200, 200, 200, 200};
-uint16_t notes[10]     = {262, 294, 330, 349, 392, 440, 494, 523, 587, 659};
+uint16_t notes[10] = {262, 294, 330, 349, 392, 440, 494, 523, 587, 659};
 volatile uint32_t tCount = 0;
 volatile uint8_t melodyIdx = 0;
 
+// Defined our own Struct as suggested
 typedef struct {
-    uint16_t duration;
-    uint16_t freq;
+  uint16_t duration;
+  uint16_t freq;
 } Note;
 
 #define GPIO 0x50000000
 
 #define SPK_BIT 29
 #define BUTTON_BIT 3
-
-#define C6 1046
 
 bool speaker_on;
 bool button_on;
@@ -42,11 +41,12 @@ Note melody[10] = {};
 // Utility Functions
 // -------------------------------------------------------------------
 
-void initNotes(uint16_t* notes, uint16_t* durations) {
-    for (int i = 0; i < 10; i++) {
-        Note note = { durations[i], notes[i] };
-        melody[i] = note;
-    }
+// Converts given notes and durations to Objects*
+void initNotes(uint16_t *notes, uint16_t *durations) {
+  for (int i = 0; i < 10; i++) {
+    Note note = {durations[i], notes[i]};
+    melody[i] = note;
+  }
 }
 
 void writeSpeaker(bool output) {
@@ -71,7 +71,12 @@ bool readButton() { return !(NRF_P0->IN & (1UL << BUTTON_BIT)); }
 // Setting Timer and Buzzer
 // -------------------------------------------------------------------
 
+// As seen in the previous tasks
+// Starting Timer1, setting Modes etc. we decided we dont need to change
+// prescaler for the different frequencies.
 void setTimer1Freq() {
+
+  NRF_TIMER1->TASKS_STOP = 1;
   NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
   NRF_TIMER1->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
   NRF_TIMER1->PRESCALER = 4; // 16Mhz/2^4~= 1MHz
@@ -84,6 +89,8 @@ void setTimer1Freq() {
   NRF_TIMER1->TASKS_START = 1;
 }
 
+// setBuzzerFreq, writes in CC according to the ON-Time
+// (antiproportional to 2*freq in microsec bec Clk ist running @1Mhz)
 void setBuzzerFreq(unsigned long freq) {
   if (freq >= 100 && freq <= 3000) {
     NRF_TIMER1->TASKS_CLEAR = 1;
@@ -93,8 +100,12 @@ void setBuzzerFreq(unsigned long freq) {
   }
 }
 
+// Starting Timer2, setting Modes etc. we decided we dont need to change
+// prescaler for the different frequencies.
 void setTimer2(bool enable) {
   if (enable) {
+
+    NRF_TIMER2->TASKS_STOP = 1;
     NRF_TIMER2->MODE = TIMER_MODE_MODE_Timer;
     NRF_TIMER2->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
     NRF_TIMER2->PRESCALER = 4; // 16Mhz/2^4~= 1MHz
@@ -116,9 +127,9 @@ void setTimer2(bool enable) {
 }
 
 void playMelody() {
-    melodyIdx = 0;
-    setBuzzerFreq(melody[melodyIdx].freq);
-    setTimer2(true);
+  melodyIdx = 0;
+  setBuzzerFreq(melody[melodyIdx].freq);
+  setTimer2(true);
 }
 // -------------------------------------------------------------------
 // Setup and Loop
@@ -132,8 +143,6 @@ void setup() {
   button_on = false;
 
   Serial.begin(115200);
-  // while (!Serial)
-      ;
   delay(500);
   // setTimer2(true);
 
@@ -142,8 +151,7 @@ void setup() {
   playMelody();
 }
 
-void loop() {
-}
+void loop() {}
 
 // -------------------------------------------------------------------
 // ISRs
@@ -165,16 +173,16 @@ extern "C" void TIMER2_IRQHandler() {
     // if tCount >= duration, reset tCount, increase mIdx
     // also reset and stop the timer if the melody has finished
     if (tCount >= melody[melodyIdx].duration) {
-        tCount = 0;
+      tCount = 0;
 
-        melodyIdx++;
-        if (melodyIdx >= 10) {
-            setTimer2(false);
-            NRF_TIMER1->TASKS_STOP = 1;
-            writeSpeaker(false);
-            return;
-        }
-        setBuzzerFreq(melody[melodyIdx].freq);
+      melodyIdx++;
+      if (melodyIdx >= 10) {
+        setTimer2(false);
+        NRF_TIMER1->TASKS_STOP = 1;
+        writeSpeaker(false);
+        return;
+      }
+      setBuzzerFreq(melody[melodyIdx].freq);
     }
 
     tCount++;

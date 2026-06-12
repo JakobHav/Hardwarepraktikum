@@ -61,7 +61,8 @@ void stopTimer() {
   NRF_TIMER1->TASKS_STOP = 1;
 }
 
-// setBuzzerFreq
+// setBuzzerFreq, writes in CC according to the ON-Time
+// (antiproportional to 2*freq in microsec bec Clk ist running @1Mhz)
 void setBuzzerFreq(unsigned long freq) {
   if (freq >= 100 && freq <= 3000) {
     setTimer1Freq();
@@ -72,7 +73,10 @@ void setBuzzerFreq(unsigned long freq) {
   }
 }
 
+// Startung Timer, setting Modes etc. we decided we dont need to change
+// prescaler for the different frequencies.
 void setTimer1Freq() {
+  NRF_TIMER1->TASKS_STOP = 1;
   NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
   NRF_TIMER1->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
   NRF_TIMER1->PRESCALER = 4; // ~= 1MHz
@@ -90,6 +94,7 @@ void setTimer1Freq() {
 // -------------------------------------------------------------------
 
 void setup() {
+  // Setting button and speaker pin mode
   pinMode(D1, INPUT_PULLUP);
   pinModeP0(SPK_BIT, true);
 
@@ -99,6 +104,7 @@ void setup() {
 }
 
 void loop() {
+  // Button acts as a start / stop mechanism
   if (readButton()) {
     if (timer_stopped) {
       setBuzzerFreq(1046);

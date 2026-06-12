@@ -1,6 +1,6 @@
 #include <Adafruit_TinyUSB.h>
-#define BLINK_INTERVAL_MS   1000UL  // 1 second on, 1 second off → 1 Hz
-#define CYCLES_PER_COLOR    10
+#define BLINK_INTERVAL_MS 1000UL // 1 second on, 1 second off → 1 Hz
+#define CYCLES_PER_COLOR 10
 
 // ------------------------------------------------------------
 //  Global variables for Task 1 ii) and beyond
@@ -9,26 +9,29 @@
 //    uint8_t       — sufficient for a cycle/colour counter (8-bit, max 255)
 // ------------------------------------------------------------
 
-unsigned long last_blink_ms = 0;  // timestamp of the last LED toggle
-bool          led_on        = false; // current LED state
+unsigned long last_blink_ms = 0; // timestamp of the last LED toggle
+bool led_on = false;             // current LED state
 
 const int colors[3] = {LED_RED, LED_GREEN, LED_BLUE};
 
 uint8_t current_color = 0;
 uint8_t cycle_count = 0;
 
-
 void setup() {
   Serial.begin(115200);
 
   unsigned long start = millis();
-  while (!Serial && millis() - start < 3000);
+  while (!Serial && millis() - start < 3000)
+    ;
 
   Serial.println("Setup running");
 
-  Serial.print("LED_RED = "); Serial.println(LED_RED);
-  Serial.print("LED_GREEN = "); Serial.println(LED_GREEN);
-  Serial.print("LED_BLUE = "); Serial.println(LED_BLUE);
+  Serial.print("LED_RED = ");
+  Serial.println(LED_RED);
+  Serial.print("LED_GREEN = ");
+  Serial.println(LED_GREEN);
+  Serial.print("LED_BLUE = ");
+  Serial.println(LED_BLUE);
 
   // Set LED pins as outputs.
   // pinMode(pin, OUTPUT) configures a pin for digital output
@@ -42,7 +45,6 @@ void setup() {
   digitalWrite(LED_BLUE, HIGH);
 }
 
-
 void loop() {
 
   // ----------------------------------------------------------
@@ -54,7 +56,6 @@ void loop() {
   // delay(BLINK_INTERVAL_MS);
   // digitalWrite(LED_RED, HIGH);
   // delay(BLINK_INTERVAL_MS);
-
 
   // ----------------------------------------------------------
   //  Task 1 ii) — Blink using millis()  (comment out i) first)
@@ -83,12 +84,13 @@ void loop() {
     }
   }
 
-
   // ----------------------------------------------------------
   //  Task 1 iii) — Answer as a comment
   // ----------------------------------------------------------
 
-  // The advantage of using the method from II) consists of asynchronous execution of code, using the delay(ms) function does not allow execution of code during the delay period.
+  // The advantage of using the method from II) consists of asynchronous
+  // execution of code, using the delay(ms) function does not allow execution of
+  // code during the delay period.
 
   // ----------------------------------------------------------
   //  Bonus — Colour cycling after 10 blink cycles

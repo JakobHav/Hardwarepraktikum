@@ -15,8 +15,6 @@
 #define SPK_BIT 29
 #define BUTTON_BIT 3
 
-#define C6 1046
-
 bool speaker_on;
 bool timer_stopped;
 bool button_on;
@@ -51,13 +49,13 @@ bool readButton() { return !(NRF_P0->IN & (1UL << BUTTON_BIT)); }
 // -------------------------------------------------------------------
 
 void stopTimer() {
-
   writeSpeaker(false);
   timer_stopped = true;
   NRF_TIMER1->TASKS_STOP = 1;
 }
 
-// setBuzzerFreq
+// setBuzzerFreq, writes in CC according to the ON-Time
+// (antiproportional to 2*freq in microsec bec Clk ist running @1Mhz)
 void setBuzzerFreq(unsigned long freq) {
   if (freq >= 100 && freq <= 3000) {
     setTimer1Freq();
@@ -68,7 +66,11 @@ void setBuzzerFreq(unsigned long freq) {
   }
 }
 
+// Startung Timer, setting Modes etc. we decided we dont need to change
+// prescaler for the different frequencies.
 void setTimer1Freq() {
+  NRF_TIMER1->TASKS_STOP = 1;
+
   NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
   NRF_TIMER1->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
   NRF_TIMER1->PRESCALER = 4; // ~= 1MHz
@@ -86,16 +88,16 @@ void setTimer1Freq() {
 // -------------------------------------------------------------------
 
 void setup() {
+  // Pin Modes for button and speaker
   pinMode(D1, INPUT_PULLUP);
   pinModeP0(SPK_BIT, true);
 
   timer_stopped = true;
-
-  // Serial.begin(115200);
 }
 
 int freq = 100;
 void loop() {
+  // Button acts as a start / stop mechanism
   if (readButton()) {
     if (timer_stopped) {
       freq += 100;
@@ -106,7 +108,6 @@ void loop() {
       delay(200); // Debounce Delay
     }
   }
-  // Serial.println(timer_stopped);
 }
 
 // -------------------------------------------------------------------
