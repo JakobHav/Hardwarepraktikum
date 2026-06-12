@@ -11,8 +11,8 @@
 #define SAADC 0x40007000
 #define RESOLUTION_OFFSET 0x5F0
 
-#define lowThresh 33
-#define highThresh 66
+#define lowThresh 30
+#define highThresh 70
 
 // Categorizing the normalized value
 const char *categorize(int normalized) {
@@ -31,6 +31,8 @@ const char *categorize(int normalized) {
 void setup() {
   // Initializing Serial communication
   Serial.begin(115200);
+  while (!Serial && millis() < 3000)
+    ;
 
   // Configureing ADC resolution to 12-bit
 
@@ -62,5 +64,6 @@ void loop() {
     Serial.print(normalized);
     Serial.print(", C=");
     Serial.println(cat);
+    start = millis();
   }
 }
