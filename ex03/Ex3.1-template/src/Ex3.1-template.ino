@@ -4,54 +4,58 @@
 // Defining necessary constants (e.g., calibration range, thresholds,
 // timing)
 
-#define dark 50UL
-#define bright 3500UL
-#define depth_12bit 2
+#include "delay.h"
+#define bright 50UL
+#define dark 3000UL
+#define depth 2
 
 #define SAADC 0x40007000
 #define RESOLUTION_OFFSET 0x5F0
 
-#define lowThresh 30
+#define lowThresh 301
 #define highThresh 70
+
+unsigned long start;
 
 // Categorizing the normalized value
 const char *categorize(int normalized) {
-  if (normalized <= lowThresh) {
-
-    return "LOW";
-  } else if (normalized < highThresh) {
-
-    return "MEDIUM";
-  } else {
+  if (normalized <= map(highThresh, bright, dark, 0, 100)) {
 
     return "HIGH";
+  } else if (normalized > map(lowThresh, bright, dark, 0, 100)) {
+
+    return "LOW";
+  } else {
+
+    return "MEDIUM";
   }
 }
 
 void setup() {
   // Initializing Serial communication
   Serial.begin(115200);
-  while (!Serial && millis() < 3000)
+  while (!Serial || millis() < 3000)
     ;
 
   // Configureing ADC resolution to 12-bit
 
-  (char *)(SAADC + RESOLUTION_OFFSET)->depth_12bit;
+  *(char *)(SAADC + RESOLUTION_OFFSET) = depth;
+  start = millis();
 }
 
 void loop() {
   // Non-blockingly sampleing every 500 ms
-  unsigned long start = millis();
   if (millis() - start >= 500) {
+    start = millis();
 
     // Reading raw value from light sensor
     unsigned long value = analogRead(1);
 
     // Clamping the raw value to a calibrated range
-    clamp(value, dark, bright);
+    constrain(value, dark, bright);
 
     // Normalizing the value to a 0–100 scale
-    unsigned long normalized = map(value, dark, bright, 0, 100);
+    unsigned long normalized = map(value, bright, dark, 0, 100);
 
     // Determining the category using the categorize() function
     const char *cat = categorize(normalized);
@@ -59,7 +63,7 @@ void loop() {
     // Printing raw value, normalized value, and category to Serial
 
     Serial.print("R=");
-    Serial.print(raw);
+    Serial.print(value);
     Serial.print(", N=");
     Serial.print(normalized);
     Serial.print(", C=");
