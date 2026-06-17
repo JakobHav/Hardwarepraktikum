@@ -9,7 +9,7 @@
 #define b 243.12f
 
 // --- Configuration ---
-#define DHT11_PIN D0
+#define DHT11_PIN D7
 #define DHTTYPE DHT11
 
 // --- Objects ---

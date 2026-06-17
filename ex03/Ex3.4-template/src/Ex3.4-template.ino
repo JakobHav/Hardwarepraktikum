@@ -6,7 +6,7 @@
 #include <bluefruit.h>
 
 // --- Hardware Configuration ---
-#define DHT11_PIN  D0
+#define DHT11_PIN  D7
 #define DHTTYPE    DHT11
 // Buzzer on P0.29 (no Dx alias on this board — use NRF_P0 register directly)
 #define BUZZ_BIT   29
@@ -26,7 +26,7 @@
 #define SCORE_INTERVAL   1000UL
 #define DISPLAY_INTERVAL 500UL    // ~2 Hz
 #define BLE_INTERVAL     1000UL
-#define WARMUP_DURATION  30000UL
+#define WARMUP_DURATION  1000UL
 
 // --- FSM ---
 enum SystemState { STATE_INIT, STATE_HEALTHY, STATE_ATTENTION, STATE_STRESSED };
@@ -150,14 +150,18 @@ void loop() {
     }
 
     // DHT11: every 2 s
-    // BLE SoftDevice fires high-priority IRQs that corrupt the DHT single-wire
-    // timing. noInterrupts() masks app-level IRQs for the ~5 ms read window.
+    // BLE advertising events (~1 ms every 20 ms) can corrupt the 5 ms DHT
+    // single-wire read. If the first attempt returns NaN, wait 10 ms (past the
+    // current BLE slot) and retry once with force=true.
     if (now - lastDhtSample >= DHT_INTERVAL) {
         lastDhtSample = now;
-        noInterrupts();
         float t = DHT11_Sensor.readTemperature();
         float h = DHT11_Sensor.readHumidity();
-        interrupts();
+        if (isnan(t) || isnan(h)) {
+            delay(10);
+            t = DHT11_Sensor.readTemperature(false, true);
+            h = DHT11_Sensor.readHumidity(true);
+        }
         if (!isnan(t)) temp  = t;
         if (!isnan(h)) humid = h;
     }
@@ -264,11 +268,11 @@ void loop() {
     // Buzzer alarm (non-blocking pulsed beep, 200 ms on / 300 ms off)
     // Uses direct NRF_P0 register access (buzzer on P0.29, no Dx alias)
     if (eCO2 > 2200) {
-        if (buzzIsOn && now - lastBuzzToggle >= 200UL) {
+        if (buzzIsOn && now - lastBuzzToggle >= 1000UL) {
             buzzIsOn = false;
             lastBuzzToggle = now;
             buzzWrite(false);
-        } else if (!buzzIsOn && now - lastBuzzToggle >= 300UL) {
+        } else if (!buzzIsOn && now - lastBuzzToggle >= 500UL) {
             buzzIsOn = true;
             lastBuzzToggle = now;
             buzzWrite(true);
