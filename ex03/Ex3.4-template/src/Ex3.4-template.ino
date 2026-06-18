@@ -8,15 +8,11 @@
 // --- Hardware Configuration ---
 #define DHT11_PIN D7
 #define DHTTYPE DHT11
-// Buzzer on P0.29 (no Dx alias on this board — use NRF_P0 register directly)
 #define BUZZ_BIT 29
 #define LIGHT_PIN A0
 #define LED_PIN LED_BUILTIN
 
-// --- Light calibration (Ex3.1 style: low raw = bright, high raw = dark) ---
-// LIGHT_RAW_BRIGHT is the raw ADC reading under your brightest indoor condition
-// (e.g. desk lamp close to sensor). Increase this if lightPct stays stuck near
-// 0.
+// --- Light calibration ---
 #define LIGHT_RAW_BRIGHT 300
 #define LIGHT_RAW_DARK 3000
 
@@ -64,7 +60,6 @@ int healthScore = 0;
 // --- LED / buzzer state ---
 bool ledIsOn = false;
 bool buzzIsOn = false;
-bool buzzerActive = false;
 
 // --- Helpers ---
 
@@ -83,7 +78,7 @@ const char *stateToString(SystemState s) {
   }
 }
 
-// Maps raw ADC reading to 0–100 % using Ex3.1 calibration values
+// Maps raw ADC reading to 0-100 %
 int lightNormalize(int raw) {
   raw = constrain(raw, LIGHT_RAW_BRIGHT, LIGHT_RAW_DARK);
   return (int)map(raw, LIGHT_RAW_BRIGHT, LIGHT_RAW_DARK, 0, 100);
@@ -97,7 +92,13 @@ void buzzWrite(bool on) {
   }
 }
 
-void setTimer1Freq() {
+void stopTimer() {
+
+  buzzWrite(false);
+  NRF_TIMER1->TASKS_STOP = 1;
+}
+
+void startTimer() {
   NRF_TIMER1->TASKS_STOP = 1;
   NRF_TIMER1->MODE = TIMER_MODE_MODE_Timer;
   NRF_TIMER1->BITMODE = TIMER_BITMODE_BITMODE_32Bit;
@@ -123,12 +124,9 @@ void setup() {
   // Pins
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
-  // Buzzer via NRF_P0 register (P0.29)
   NRF_P0->DIRSET = (1UL << BUZZ_BIT);
   buzzWrite(false);
   analogReadResolution(12);
-
-  setTimer1Freq();
 
   // Sensors
   DHT11_Sensor.begin();
@@ -153,6 +151,8 @@ void setup() {
   Bluefruit.ScanResponse.addName();
   Bluefruit.Advertising.start(0);
 
+
+  // time vars
   systemStartTime = millis();
   lastLightSample = systemStartTime;
   lastDhtSample = systemStartTime;
@@ -176,8 +176,7 @@ void loop() {
   }
 
   // DHT11: every 2 s
-  // BLE advertising events (~1 ms every 20 ms) can corrupt the 5 ms DHT
-  // single-wire read. If the first attempt returns NaN, wait 10 ms (past the
+  // If the first attempt returns NaN, wait 10 ms (past the
   // current BLE slot) and retry once with force=true.
   if (now - lastDhtSample >= DHT_INTERVAL) {
     lastDhtSample = now;
@@ -215,7 +214,7 @@ void loop() {
 
     healthScore = 0;
     if (lightPct >= 25 && lightPct <= 90)
-      healthScore += 25; // Ex3.1 range
+      healthScore += 25;
     if (temp >= 18.0f && temp <= 30.0f)
       healthScore += 25;
     if (humid >= 30.0f && humid <= 75.0f)
@@ -297,30 +296,24 @@ void loop() {
     break;
   }
 
-  // Buzzer alarm (non-blocking pulsed beep, 200 ms on / 300 ms off)
-  // Uses direct NRF_P0 register access (buzzer on P0.29, no Dx alias)
+  // Buzzer alarm (non-blocking pulsed beep, 1000 ms on / 500 ms off)
   if (eCO2 > 2200) {
     if (buzzIsOn && now - lastBuzzToggle >= 1000UL) {
       buzzIsOn = false;
       lastBuzzToggle = now;
-      buzzWrite(false);
+      stopTimer();
     } else if (!buzzIsOn && now - lastBuzzToggle >= 500UL) {
       buzzIsOn = true;
       lastBuzzToggle = now;
-      buzzWrite(true);
+      startTimer();
     }
   } else {
-    if (buzzerActive) {
-      buzzerActive = false;
-      buzzIsOn = false;
-      buzzWrite(false);
-    }
+    stopTimer();
   }
-  if (eCO2 > 2200 && !buzzerActive) {
-    buzzerActive = true;
+  if (eCO2 > 2200) {
     buzzIsOn = true;
     lastBuzzToggle = now;
-    buzzWrite(true);
+    startTimer();
   }
 
   // --- vi) BLE telemetry (1 Hz) ---
@@ -335,10 +328,11 @@ void loop() {
   }
 }
 
+// hardware timer interrupt used for buzzer
 extern "C" void TIMER1_IRQHandler() {
   if (NRF_TIMER1->EVENTS_COMPARE[0]) {
     NRF_TIMER1->EVENTS_COMPARE[0] = 0;
-    speaker_on = !speaker_on;
-    writeSpeaker(speaker_on && !button_on);
+    buzzIsOn = !buzzIsOn;
+    buzzWrite(buzzIsOn);
   }
 }

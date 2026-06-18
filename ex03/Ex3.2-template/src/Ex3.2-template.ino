@@ -1,7 +1,6 @@
 // Task 2: Robust Temperature and Humidity Monitoring
 
 #include <DHT.h>
-#include <cstddef>
 #include <math.h>
 #include <sys/_types.h>
 

@@ -5,7 +5,7 @@
 #include "wiring_analog.h"
 #include <Adafruit_TinyUSB.h>
 #define bright 50UL
-#define dark 3000UL
+#define dark 3500UL
 #define depth 2
 
 #define LIGHT_PIN A0
