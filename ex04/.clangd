@@ -1,0 +1,17 @@
+CompileFlags:
+  Remove:
+    - -fstrict-volatile-bitfields
+    - -fno-tree-switch-conversion
+    - -fno-jump-tables
+    - -freorder-blocks
+    - --param
+    - max-inline-insns-single=*
+  Add:
+    - --target=arm-none-eabi
+    - -nostdinc
+    - -nostdinc++
+    - -isystem/home/sduttlinger/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/8.2.1
+    - -isystem/home/sduttlinger/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include/c++/8.2.1/arm-none-eabi
+    - -isystem/home/sduttlinger/.platformio/packages/toolchain-gccarmnoneeabi/arm-none-eabi/include
+    - -isystem/home/sduttlinger/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/arm-none-eabi/8.2.1/include
+    - -isystem/home/sduttlinger/.platformio/packages/toolchain-gccarmnoneeabi/lib/gcc/arm-none-eabi/8.2.1/include-fixed
